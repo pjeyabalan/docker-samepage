@@ -1,0 +1,39 @@
+sudo: required
+language: generic
+services:
+  - docker
+
+before_install:
+  - docker build -t  erickrdze/docker-complex -f ./client/Dockerfile.dev ./client
+
+script: 
+  - docker run -e CI=true erickrdze/docker-complex npm test
+
+after_success:
+  - docker build -t erickrdze/multi-client ./client
+  - docker build -t erickrdze/multi-nginx ./nginx
+  - docker build -t erickrdze/multi-server ./server
+  - docker build -t erickrdze/multi-worker ./worker
+
+#Log in to the Docker CLI
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_ID" --password-stdin
+
+#Take those images and push them to docker hub
+  - docker push erickrdze/multi-client
+  - docker push erickrdze/multi-nginx
+  - docker push erickrdze/multi-server
+  - docker push erickrdze/multi-worker
+
+deploy:
+  provider: elasticbeanstalk
+  region: us-east-2
+  app: multi-docker
+  env: MultiDocker-env
+  bucket_name: elasticbeanstalk-us-east-2-033454698408
+  bucket_path: docker
+  on: 
+    branch: master
+  access_key_id: 
+    secure: $AWS_ACCESS_KEY
+  secret_access_key: 
+    secure: $AWS_SECRET_KEY
